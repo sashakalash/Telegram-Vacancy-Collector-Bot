@@ -1,0 +1,34 @@
+2026-03-20 14:47:01,595 [INFO] __main__: Starting monitor...
+2026-03-20 14:47:03,904 [INFO] sheets: Channels loaded from sheet: 61
+2026-03-20 14:47:04,678 [INFO] sheets: Keywords loaded: include=13, exclude=35
+2026-03-20 14:47:04,679 [INFO] __main__: Channels: ['@remotegeekjob', '@Remoteit', '@theyobby', '@JScript_jobs', '@dev_connectablejobs', '@JobOfferInside', '@geekjobs', '@forfrontend', '@zarubezhom_jobs', '@devs_it', '@jaabz_com', '@youritjob', '@progjob', '@young_relocate', '@Getitrussia', '@evacuatejobs', '@JavaScript_Jobb', '@BlockHire', '@runello_rus_webdevelopment', '@relocaty_jobs', '@Relocats', '@vakansii_it', '@cyprusithr', '@jobs_in_it_remoute', '@fucked_up_flats', '@YotolabFrontend', '@it_vakansii_jobs', '@jtbl_vacancy', '@fucked_up_flats', '@jobsearchhhhh', '@easy_frontend_jobs', '@hirifyme_bot', '@angular_jobs_feed', '@opento_cyprus', '@opento_dev', '@job_for_relocation', '@remote_jobs_relocate', '@remocatedevs', '@js_rabota', '@devs_it', '@runello_rus_frontend', '@fintech_vacancy', '@findremote', '@jsdevjob', '@runello_rus_javascript', '@runello_rus_typescript', '@workingincrypto', '@it_vacancy_relocation', '@Devhunt_vacancies', '@jobGeeks', '@hiringanddealing', '@jobfeeds', '@itvals_hr', '@goutstaff', '@hiddengurus', '@g_jobbot', '@frontend_rabota', '@fromlinked', '@it_rab', '@cchellowork', '@IT_REMOTE_PROJECTS']
+2026-03-20 14:47:04,679 [INFO] __main__: Include: ['typescript', 'тайпскрипт', 'javascript', 'джаваскрипт', 'фронтенд', 'frontend', 'Angular', 'ангуляр', 'web', 'веб', 'Frontend Engineer', 'Frontend Developer', 'Angular Developer']
+2026-03-20 14:47:04,679 [INFO] __main__: Exclude: ['junior', 'Яндекс', 'Kaspersky', 'Wildberries', 'Ozon', 'верстальщик', '#резюме', 'индия', 'ukraine', 'HTML Developer', 'HTML-Developer', 'минск', 'республика беларусь', 'igaming', 'сбер', '.net', 'kotlin', 'санкт-петербург', 'москва', 'мск', 'спб', 'красноярск', 'пенза', 'c#', 'c++', 'golang', 'удаленно в рф', '#resume', 'локация: рф', 'trainee', 'стажер', 'стажёр', 'devops', 'мтс', 'php']
+2026-03-20 14:47:04,682 [INFO] telethon.network.mtprotosender: Connecting to 149.154.167.51:443/TcpFull...
+2026-03-20 14:47:04,757 [INFO] telethon.network.mtprotosender: Connection to 149.154.167.51:443/TcpFull complete!
+2026-03-20 14:47:05,842 [INFO] __main__: Monitoring 61/61 channels
+2026-03-20 14:47:05,842 [INFO] __main__: Telethon connected. Waiting for messages...
+2026-03-20 14:47:15,822 [INFO] telethon.client.updates: Got difference for channel 2658636357 updates
+2026-03-20 14:47:16,161 [INFO] __main__: Match in @fucked_up_flats: ['frontend']
+2026-03-20 14:47:16,162 [INFO] __main__: Match in @fucked_up_flats: ['frontend']
+2026-03-20 14:47:16,714 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8750865850:AAFbpE_tcbph0BwhOcYSIjMAUV7vU5fo03w/sendMessage "HTTP/1.1 200 OK"
+2026-03-20 14:47:16,718 [INFO] notifier: Notification sent: fucked_up_flats
+2026-03-20 14:47:16,911 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8750865850:AAFbpE_tcbph0BwhOcYSIjMAUV7vU5fo03w/sendMessage "HTTP/1.1 200 OK"
+2026-03-20 14:47:16,914 [INFO] notifier: Notification sent: fucked_up_flats
+2026-03-20 14:47:17,214 [INFO] sheets: Written to sheet: fucked_up_flats — ['frontend']
+2026-03-20 14:47:18,569 [INFO] sheets: Written to sheet: fucked_up_flats — ['frontend']
+2026-03-20 14:50:40,759 [INFO] __main__: Match in @hirifyme_bot: ['typescript', 'javascript', 'frontend']
+2026-03-20 14:50:41,158 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8750865850:AAFbpE_tcbph0BwhOcYSIjMAUV7vU5fo03w/sendMessage "HTTP/1.1 200 OK"
+2026-03-20 14:50:41,162 [INFO] notifier: Notification sent: hirifyme_bot
+2026-03-20 14:50:41,684 [INFO] sheets: Written to sheet: hirifyme_bot — ['typescript', 'javascript', 'frontend']
+n @fucked_up_flats: ['frontend']
+2026-03-20 14:47:16,714 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8750865850:AAFbpE_tcbph0BwhOcYSIjMAUV7vU5fo03w/sendMessage "HTTP/1.1 200 OK"
+2026-03-20 14:47:16,718 [INFO] notifier: Notification sent: fucked_up_flats
+2026-03-20 14:47:16,911 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8750865850:AAFbpE_tcbph0BwhOcYSIjMAUV7vU5fo03w/sendMessage "HTTP/1.1 200 OK"
+2026-03-20 14:47:16,914 [INFO] notifier: Notification sent: fucked_up_flats
+2026-03-20 14:47:17,214 [INFO] sheets: Written to sheet: fucked_up_flats — ['frontend']
+2026-03-20 14:47:18,569 [INFO] sheets: Written to sheet: fucked_up_flats — ['frontend']
+2026-03-20 14:50:40,759 [INFO] __main__: Match in @hirifyme_bot: ['typescript', 'javascript', 'frontend']
+2026-03-20 14:50:41,158 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8750865850:AAFbpE_tcbph0BwhOcYSIjMAUV7vU5fo03w/sendMessage "HTTP/1.1 200 OK"
+2026-03-20 14:50:41,162 [INFO] notifier: Notification sent: hirifyme_bot
+2026-03-20 14:50:41,684 [INFO] sheets: Written to sheet: hirifyme_bot — ['typescript', 'javascript', 'frontend']
