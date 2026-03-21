@@ -46,6 +46,8 @@ async def main():
         message = event.message
         text = message.text or message.caption or ""
 
+        logger.info(f"Raw text from @{(await event.get_chat()).username}: {text[:300]}")
+
         if not matches(text, include_kw, exclude_kw):
             return
 
