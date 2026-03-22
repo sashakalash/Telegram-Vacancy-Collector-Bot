@@ -75,8 +75,8 @@ def load_keywords() -> tuple[list[str], list[str]]:
     try:
         ws = _get_spreadsheet().worksheet("keywords")
         records = ws.get_all_records()
-        include = [row["keyword"] for row in records if row.get("type") == "include" and row.get("keyword")]
-        exclude = [row["keyword"] for row in records if row.get("type") == "exclude" and row.get("keyword")]
+        include = [row["keyword"].strip() for row in records if row.get("type") == "include" and row.get("keyword", "").strip()]
+        exclude = [row["keyword"].strip() for row in records if row.get("type") == "exclude" and row.get("keyword", "").strip()]
         logger.info(f"Keywords loaded: include={len(include)}, exclude={len(exclude)}")
         return include, exclude
     except Exception as e:
