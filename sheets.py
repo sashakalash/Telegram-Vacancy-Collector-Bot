@@ -74,10 +74,20 @@ def load_keywords() -> tuple[list[str], list[str]]:
     """
     try:
         ws = _get_spreadsheet().worksheet("keywords")
-        records = ws.get_all_records(expected_headers=["keyword", "type"])
-        logger.info(f"Keywords raw records (first 5): {records[:5]}")
-        include = [row["keyword"].strip() for row in records if row.get("type") == "include" and row.get("keyword", "").strip()]
-        exclude = [row["keyword"].strip() for row in records if row.get("type") == "exclude" and row.get("keyword", "").strip()]
+        all_values = ws.get_all_values()
+        logger.info(f"Keywords sheet raw values (first 10): {all_values[:10]}")
+        if not all_values:
+            return [], []
+        headers = [h.strip().lower() for h in all_values[0]]
+        logger.info(f"Keywords sheet headers: {headers}")
+        try:
+            kw_col = headers.index("keyword")
+            type_col = headers.index("type")
+        except ValueError:
+            logger.error(f"Keywords sheet missing 'keyword' or 'type' column. Found: {headers}")
+            return [], []
+        include = [row[kw_col].strip() for row in all_values[1:] if len(row) > type_col and row[type_col].strip().lower() == "include" and row[kw_col].strip()]
+        exclude = [row[kw_col].strip() for row in all_values[1:] if len(row) > type_col and row[type_col].strip().lower() == "exclude" and row[kw_col].strip()]
         logger.info(f"Keywords loaded: include={len(include)}, exclude={len(exclude)}")
         logger.debug(f"Exclude list: {exclude}")
         return include, exclude
