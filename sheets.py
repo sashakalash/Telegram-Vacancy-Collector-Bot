@@ -75,6 +75,7 @@ def load_keywords() -> tuple[list[str], list[str]]:
     try:
         ws = _get_spreadsheet().worksheet("keywords")
         records = ws.get_all_records(expected_headers=["keyword", "type"])
+        logger.info(f"Keywords raw records (first 5): {records[:5]}")
         include = [row["keyword"].strip() for row in records if row.get("type") == "include" and row.get("keyword", "").strip()]
         exclude = [row["keyword"].strip() for row in records if row.get("type") == "exclude" and row.get("keyword", "").strip()]
         logger.info(f"Keywords loaded: include={len(include)}, exclude={len(exclude)}")
