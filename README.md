@@ -1,6 +1,6 @@
 # Telegram Vacancies Collector
 
-Monitors Telegram channels for job postings matching your keywords. Filters noise via exclude keywords, writes matches to Google Sheets, and sends a Telegram notification instantly. Channels and keywords are managed in Google Sheets — no code changes needed. Keywords and channels are hot-reloaded every 30 minutes.
+Monitors Telegram channels and company career pages for job postings matching your keywords. Filters noise via exclude keywords, writes matches to Google Sheets, and sends a Telegram notification. Channels, career pages and keywords are managed in Google Sheets — no code changes needed. Keywords and channels are hot-reloaded every 30 minutes; career pages are checked once a day.
 
 ## Project Structure
 
@@ -10,6 +10,10 @@ Monitors Telegram channels for job postings matching your keywords. Filters nois
 ├── filter.py         # Keyword filtering logic
 ├── sheets.py         # Google Sheets read/write
 ├── notifier.py       # Telegram bot notifications
+├── state.py          # What has been seen, saved to STATE_FILE
+├── career_sources.py # Reads jobs from career links
+├── career_scanner.py # Daily career page check
+├── tests/            # Run with: python -m unittest discover -s tests -t .
 ├── Procfile          # Railway worker process
 ├── requirements.txt
 ├── .env              # Secrets — do not commit
@@ -21,7 +25,27 @@ Monitors Telegram channels for job postings matching your keywords. Filters nois
 - Sheet `channels` — columns: `handle`, `channel_id`
 - Sheet `keywords` — columns: `keyword`, `type` (`include` / `exclude`)
 
-Edit the sheet; changes are picked up automatically within 30 minutes (no restart needed).
+- Sheet `career_pages` — paste career links into column `url`, from row 2. The app fills in `status`, `jobs` and `last_checked`
+- Sheet `locations` — column `word`, the places a job's location must mention
+
+The app creates `career_pages` and `locations` the first time it runs.
+
+Edit the sheet; keyword and channel changes are picked up automatically within 30 minutes (no restart needed). Career links and location words are read at each daily check.
+
+## Career Pages
+
+Once a day the app reads every link in `career_pages`:
+
+- **Job platforms** (Greenhouse, Lever, Ashby, Workable, Gem, Rippling, BambooHR, Workday, Teamtailor, Recruitee, Zoho Recruit) are read through their job feed, detected from the link or the company's page. Feeds return all of a company's jobs and ignore filters saved in the link.
+- **Other pages** are read for links that look like jobs. They use the saved link as is, and may break if the site is redesigned. Pages that need a browser or block the app show as `No jobs found` or `Can't read`.
+
+The first read of a link stays quiet and only remembers the jobs already there. After that, each new job goes through these filters:
+
+1. **Location:** must mention a word from `locations`, or be plain "Remote". "Remote - Poland" is cut. Jobs with no location are kept.
+2. **Include keywords:** checked against the title and full description.
+3. **Exclude keywords:** checked against the title only, because long descriptions mention everything.
+
+Matches go to the same results sheet and Telegram chat as channel posts. You also get a Telegram message when a link that was working stops working or suddenly shows no jobs.
 
 ## Environment Variables
 
@@ -35,6 +59,8 @@ Edit the sheet; changes are picked up automatically within 30 minutes (no restar
 | `GOOGLE_CREDENTIALS_FILE` | Path to service account JSON (default: `credentials.json`) |
 | `GOOGLE_SPREADSHEET_ID` | Google Sheets spreadsheet ID |
 | `Collector` | Sheet tab name for dedup log (default: `dedup_log`) |
+| `STATE_FILE` | Where seen messages and jobs are saved. On Railway, point it at a volume (default: `state.json`) |
+| `CAREER_SCAN_INTERVAL_HOURS` | Hours between career page checks (default: `24`) |
 
 ## Railway Deployment
 

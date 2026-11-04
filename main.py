@@ -7,6 +7,7 @@ from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
 import config
+from career_scanner import career_scan_loop
 from filter import matches, matched_keywords
 from notifier import send_notification
 from sheets import load_channels, load_keywords, write_row
@@ -230,7 +231,9 @@ async def main():
     logger.info("Telethon connected. Waiting for messages...")
     asyncio.create_task(reload_keywords_loop())
     asyncio.create_task(reload_channels_loop())
+    career_task = asyncio.create_task(career_scan_loop(kw_state))
     await client.run_until_disconnected()
+    career_task.cancel()
 
 
 if __name__ == "__main__":

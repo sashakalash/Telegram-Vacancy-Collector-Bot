@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 # On Railway, point STATE_FILE at a mounted volume to survive redeploys.
 STATE_FILE = os.getenv("STATE_FILE", "state.json")
 WRITTEN_CAP_PER_CHANNEL = 1000
+SEEN_CAP_PER_SITE = 5000
 
 _lock = threading.Lock()
 _state: dict = {}
@@ -29,6 +30,7 @@ def _ensure_loaded() -> None:
     else:
         _state = {}
     _state.setdefault("channels", {})
+    _state.setdefault("career_sites", {})
     _loaded = True
 
 
@@ -83,4 +85,54 @@ def mark_written(channel: str, message_id: int) -> None:
         cs["written_ids"].append(message_id)
         if len(cs["written_ids"]) > WRITTEN_CAP_PER_CHANNEL:
             cs["written_ids"] = cs["written_ids"][-WRITTEN_CAP_PER_CHANNEL:]
+        _persist()
+
+
+def get_career_site(url: str) -> dict:
+    with _lock:
+        _ensure_loaded()
+        site = _state["career_sites"].get(url, {})
+        return {
+            "seeded": site.get("seeded", False),
+            "seen": set(site.get("seen", [])),
+            "last_jobs": site.get("last_jobs", 0),
+            "is_feed": site.get("is_feed", False),
+        }
+
+
+def record_career_site(
+    url: str,
+    seen: list[str] | None = None,
+    seeded: bool | None = None,
+    last_jobs: int | None = None,
+    is_feed: bool | None = None,
+) -> None:
+    with _lock:
+        _ensure_loaded()
+        site = _state["career_sites"].setdefault(
+            url, {"seeded": False, "seen": [], "last_jobs": 0, "is_feed": False}
+        )
+        if is_feed is not None:
+            site["is_feed"] = is_feed
+        if seen:
+            known = set(site["seen"])
+            site["seen"].extend(job_id for job_id in dict.fromkeys(seen) if job_id not in known)
+            site["seen"] = site["seen"][-SEEN_CAP_PER_SITE:]
+        if seeded is not None:
+            site["seeded"] = seeded
+        if last_jobs is not None:
+            site["last_jobs"] = last_jobs
+        _persist()
+
+
+def get_last_career_scan() -> str | None:
+    with _lock:
+        _ensure_loaded()
+        return _state.get("career_last_scan")
+
+
+def set_last_career_scan(when: str) -> None:
+    with _lock:
+        _ensure_loaded()
+        _state["career_last_scan"] = when
         _persist()

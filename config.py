@@ -18,3 +18,6 @@ SESSION_STRING = os.getenv("SESSION_STRING")  # If set, used instead of session 
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
 SHEET_NAME = os.getenv("Collector", "dedup_log")
+
+# --- Career pages ---
+CAREER_SCAN_INTERVAL_HOURS = float(os.getenv("CAREER_SCAN_INTERVAL_HOURS", "24"))

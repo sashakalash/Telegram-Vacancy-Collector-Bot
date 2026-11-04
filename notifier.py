@@ -1,3 +1,4 @@
+import html
 import logging
 
 import telegram
@@ -47,4 +48,48 @@ async def send_notification(
         return True
     except Exception as e:
         logger.error(f"Error sending notification: {e}")
+        return False
+
+
+async def send_career_notification(
+    company: str, title: str, location: str | None, keywords: list[str], link: str
+) -> bool:
+    try:
+        keywords_str = " | ".join(f"#{kw.replace(' ', '_')}" for kw in keywords)
+        message = (
+            f"🔔 <b>New job on a career page</b>\n\n"
+            f"💼 <b>{html.escape(title)}</b>\n"
+            f"🏢 {html.escape(company)}\n"
+            f"📍 {html.escape(location or 'not listed')}\n"
+            f"🔑 {html.escape(keywords_str)}\n\n"
+            f"🔗 <a href='{html.escape(link, quote=True)}'>Open job</a>"
+        )
+        await _get_bot().send_message(
+            chat_id=MY_CHAT_ID,
+            text=message,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+        logger.info(f"Career notification sent: {company} — {title}")
+        return True
+    except Exception as e:
+        logger.error(f"Error sending career notification: {e}")
+        return False
+
+
+async def send_career_alert(url: str, problem: str) -> bool:
+    try:
+        await _get_bot().send_message(
+            chat_id=MY_CHAT_ID,
+            text=(
+                f"⚠️ <b>Career page stopped working</b>\n\n"
+                f"{html.escape(url)}\n"
+                f"Problem: {html.escape(problem)}"
+            ),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error sending career alert: {e}")
         return False
