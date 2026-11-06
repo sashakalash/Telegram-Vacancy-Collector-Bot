@@ -91,6 +91,8 @@ class Job:
     description: str | None = None
     # Returns (location or None to keep the current one, description).
     load_details: Callable[[], tuple[str | None, str | None]] | None = None
+    # False when the title is a stand-in that load_details replaces with the page's own.
+    title_is_final: bool = True
 
     @property
     def id(self) -> str:
@@ -562,7 +564,7 @@ def _jobs_from_page(page: str, page_url: str) -> list[Job]:
         current = found.get(url)
         if current and (current[1] or not has_title):
             continue
-        job = Job(title=text[:150] if has_title else _title_from_address(url), url=url)
+        job = Job(title=text[:150] if has_title else _title_from_address(url), url=url, title_is_final=has_title)
         job.load_details = _job_page_details(job, needs_title=not has_title)
         found[url] = (job, has_title)
     return [job for job, _ in found.values()]

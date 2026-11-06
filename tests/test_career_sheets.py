@@ -72,6 +72,46 @@ class LoadCareerPagesTest(unittest.TestCase):
             sheets.load_career_pages()
 
 
+class LoadCareerKeywordsTest(unittest.TestCase):
+    def keywords_from(self, rows):
+        tab = FakeWorksheet(rows)
+        with with_spreadsheet(FakeSpreadsheet({"keywords": tab})):
+            return sheets.load_career_keywords()
+
+    def test_sorts_words_by_type(self):
+        keywords = self.keywords_from(
+            [
+                ["keyword", "type"],
+                ["frontend", "title"],
+                [" full stack ", " Title "],
+                ["software engineer", "generic title"],
+                ["typescript", "stack"],
+                ["php", "exclude"],
+                ["web", "include"],
+                ["", "title"],
+                ["no type", ""],
+            ]
+        )
+        self.assertEqual(keywords.titles, ["frontend", "full stack"])
+        self.assertEqual(keywords.generic_titles, ["software engineer"])
+        self.assertEqual(keywords.stack, ["typescript"])
+        self.assertEqual(keywords.exclude, ["php"])
+
+    def test_finds_columns_by_name(self):
+        keywords = self.keywords_from([["Type", "Keyword"], ["title", "frontend"]])
+        self.assertEqual(keywords.titles, ["frontend"])
+
+    def test_a_missing_column_is_raised_not_hidden_as_empty(self):
+        with self.assertRaises(ValueError):
+            self.keywords_from([["word"], ["frontend"]])
+
+    def test_a_sheets_failure_is_raised_not_hidden_as_empty(self):
+        broken = MagicMock()
+        broken.worksheet.side_effect = gspread.exceptions.GSpreadException("down")
+        with with_spreadsheet(broken), self.assertRaises(gspread.exceptions.GSpreadException):
+            sheets.load_career_keywords()
+
+
 class LoadLocationWordsTest(unittest.TestCase):
     def test_reads_words_from_first_column(self):
         tab = FakeWorksheet([["word"], ["Argentina"], [" LATAM "], [""]])

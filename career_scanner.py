@@ -6,12 +6,13 @@ from datetime import datetime, timezone
 
 from career_sources import Job, SiteRead, SiteUnreadable, read_site
 from config import CAREER_SCAN_INTERVAL_HOURS
-from filter import career_keywords, location_matches
+from filter import CareerKeywords, career_keywords, location_matches, title_may_match
 from notifier import send_career_alert, send_career_notification
 from sheets import (
     CareerRow,
     CareerStatus,
     append_career_rows,
+    load_career_keywords,
     load_career_pages,
     load_location_words,
     write_career_statuses,
@@ -61,7 +62,7 @@ def _status_for(site: SiteRead) -> CareerStatus:
 
 
 def _filter_new_jobs(
-    site: SiteRead, seen: set[str], include: list[str], exclude: list[str], words: list[str]
+    site: SiteRead, seen: set[str], keywords: CareerKeywords, words: list[str]
 ) -> tuple[list[Match], list[str]]:
     matches: list[Match] = []
     settled: list[str] = []
@@ -70,6 +71,9 @@ def _filter_new_jobs(
         if job.id in seen:
             continue
         if job.location and not location_matches(job.location, words):
+            settled.append(job.id)
+            continue
+        if job.title_is_final and not title_may_match(job.title, keywords):
             settled.append(job.id)
             continue
         if job.load_details:
@@ -86,15 +90,15 @@ def _filter_new_jobs(
             if not location_matches(job.location, words):
                 settled.append(job.id)
                 continue
-        keywords = career_keywords(job.title, job.description or "", include, exclude)
-        if keywords:
-            matches.append(Match(job, keywords, site.company))
+        found = career_keywords(job.title, job.description or "", keywords)
+        if found:
+            matches.append(Match(job, found, site.company))
         else:
             settled.append(job.id)
     return matches, settled
 
 
-def _examine_site(url: str, include: list[str], exclude: list[str], words: list[str]) -> SiteOutcome:
+def _examine_site(url: str, keywords: CareerKeywords, words: list[str]) -> SiteOutcome:
     record = get_career_site(url)
     try:
         site = read_site(url, feed_only=record["is_feed"])
@@ -116,14 +120,14 @@ def _examine_site(url: str, include: list[str], exclude: list[str], words: list[
         )
         return SiteOutcome(status, problem=problem)
 
-    matches, settled = _filter_new_jobs(site, record["seen"], include, exclude, words)
+    matches, settled = _filter_new_jobs(site, record["seen"], keywords, words)
     record_career_site(url, seen=settled, last_jobs=count)
     return SiteOutcome(status, matches, problem)
 
 
-def _examine_site_safely(url: str, include: list[str], exclude: list[str], words: list[str]) -> SiteOutcome:
+def _examine_site_safely(url: str, keywords: CareerKeywords, words: list[str]) -> SiteOutcome:
     try:
-        return _examine_site(url, include, exclude, words)
+        return _examine_site(url, keywords, words)
     except Exception as e:
         logger.error(f"Career page {url} failed: {e}", exc_info=True)
         return _unreadable(url, get_career_site(url), "unexpected error")
@@ -152,11 +156,11 @@ async def _deliver(url: str, matches: list[Match]) -> None:
         await asyncio.sleep(NOTIFICATION_PAUSE_SECONDS)
 
 
-async def run_career_scan(kw_state: dict) -> bool:
+async def run_career_scan() -> bool:
     """Returns False if the scan was skipped, so the caller retries soon instead of tomorrow."""
-    include, exclude = list(kw_state["include"]), list(kw_state["exclude"])
-    if not include:
-        logger.warning("Career scan skipped: no include keywords loaded")
+    keywords = await asyncio.to_thread(load_career_keywords)
+    if not keywords.titles:
+        logger.warning("Career scan skipped: no words with type 'title' in the keywords sheet")
         return False
     pages = await asyncio.to_thread(load_career_pages)
     words = await asyncio.to_thread(load_location_words)
@@ -168,7 +172,7 @@ async def run_career_scan(kw_state: dict) -> bool:
     statuses: dict[str, CareerStatus] = {}
     found = 0
     for url in pages:
-        outcome = await asyncio.to_thread(_examine_site_safely, url, include, exclude, words)
+        outcome = await asyncio.to_thread(_examine_site_safely, url, keywords, words)
         statuses[url] = outcome.status
         if outcome.matches:
             found += len(outcome.matches)
@@ -192,12 +196,12 @@ def seconds_until_due(last_scan: str | None, now: datetime, interval_hours: floa
     return max(0, interval_hours * 3600 - elapsed)
 
 
-async def career_scan_loop(kw_state: dict) -> None:
+async def career_scan_loop() -> None:
     while True:
         now = datetime.now(timezone.utc)
         await asyncio.sleep(seconds_until_due(get_last_career_scan(), now, CAREER_SCAN_INTERVAL_HOURS))
         try:
-            finished = await run_career_scan(kw_state)
+            finished = await run_career_scan()
         except Exception as e:
             logger.error(f"Career scan failed: {e}", exc_info=True)
             finished = False

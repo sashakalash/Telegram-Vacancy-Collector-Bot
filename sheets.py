@@ -8,6 +8,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from config import GOOGLE_CREDENTIALS_FILE, SPREADSHEET_ID, SHEET_NAME
+from filter import CareerKeywords
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,23 @@ def load_keywords() -> tuple[list[str], list[str]]:
     except Exception as e:
         logger.error(f"Error loading keywords: {e}")
         return [], []
+
+
+def load_career_keywords() -> CareerKeywords:
+    """Raises on Sheets errors, so a scan is retried instead of cutting every job."""
+    rows = _get_spreadsheet().worksheet("keywords").get_all_values()
+    headers = [h.strip().lower() for h in rows[0]] if rows else []
+    kw_col, type_col = headers.index("keyword"), headers.index("type")
+    words: dict[str, list[str]] = {}
+    for row in rows[1:]:
+        if len(row) > max(kw_col, type_col) and row[kw_col].strip():
+            words.setdefault(row[type_col].strip().lower(), []).append(row[kw_col].strip())
+    return CareerKeywords(
+        titles=words.get("title", []),
+        generic_titles=words.get("generic title", []),
+        stack=words.get("stack", []),
+        exclude=words.get("exclude", []),
+    )
 
 
 def write_row(channel: str, keywords: list[str], text: str, link: str) -> bool:

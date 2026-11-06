@@ -23,14 +23,14 @@ Monitors Telegram channels and company career pages for job postings matching yo
 ## Google Sheets Structure
 
 - Sheet `channels` — columns: `handle`, `channel_id`
-- Sheet `keywords` — columns: `keyword`, `type` (`include` / `exclude`)
+- Sheet `keywords` — columns: `keyword`, `type`. Channel posts use `include` and `exclude`. Career pages use `title`, `generic title`, `stack` and `exclude`
 
 - Sheet `career_pages` — paste career links into column `url`, from row 2. The app fills in `status`, `jobs` and `last_checked`
 - Sheet `locations` — column `word`, the places a job's location must mention
 
 The app creates `career_pages` and `locations` the first time it runs.
 
-Edit the sheet; keyword and channel changes are picked up automatically within 30 minutes (no restart needed). Career links and location words are read at each daily check.
+Edit the sheet; keyword and channel changes are picked up automatically within 30 minutes (no restart needed). Career links, career keywords and location words are read at each daily check.
 
 ## Career Pages
 
@@ -42,8 +42,10 @@ Once a day the app reads every link in `career_pages`:
 The first read of a link stays quiet and only remembers the jobs already there. After that, each new job goes through these filters:
 
 1. **Location:** must mention a word from `locations`, or be plain "Remote". "Remote - Poland" is cut. Jobs with no location are kept.
-2. **Include keywords:** checked against the title and full description.
-3. **Exclude keywords:** checked against the title only, because long descriptions mention everything.
+2. **Exclude keywords:** checked against the title only, because long descriptions mention everything.
+3. **Title:** a `title` word, like `frontend`, is enough on its own. A `generic title` word, like `software engineer`, also needs a `stack` word, like `typescript`, in the title or description. Any other title is cut.
+
+Career pages match whole words only, so `web` doesn't match "Webinars" and `java` doesn't match "JavaScript". The scan waits until the sheet has at least one `title` word.
 
 Matches go to the same results sheet and Telegram chat as channel posts. You also get a Telegram message when a link that was working stops working or suddenly shows no jobs.
 

@@ -7,10 +7,13 @@ from unittest.mock import AsyncMock, patch
 import career_scanner
 import state
 from career_sources import Job, SiteRead, SiteUnreadable
+from filter import CareerKeywords
 
 URL = "https://acme.com/careers"
 WORDS = ["Argentina"]
-KEYWORDS = {"include": ["React"], "exclude": ["PHP"]}
+KEYWORDS = CareerKeywords(
+    titles=["Frontend"], generic_titles=["Software Engineer"], stack=["React"], exclude=["PHP"]
+)
 
 
 def feed(*jobs):
@@ -21,13 +24,14 @@ def page(*jobs):
     return SiteRead(list(jobs), "acme.com", False, "page links")
 
 
-def job(name, location="Argentina", description="React", load_details=None):
+def job(name, location="Argentina", description="React", load_details=None, title=None, title_is_final=True):
     return Job(
-        title=name,
+        title=title or f"Frontend {name}",
         url=f"https://acme.com/jobs/{name}",
         location=location,
         description=description,
         load_details=load_details,
+        title_is_final=title_is_final,
     )
 
 
@@ -46,6 +50,7 @@ class ScannerTestCase(unittest.IsolatedAsyncioTestCase):
             self.addCleanup(p.stop)
 
         self.read_site = self.start(patch.object(career_scanner, "read_site"))
+        self.load_keywords = self.start(patch.object(career_scanner, "load_career_keywords", return_value=KEYWORDS))
         self.load_pages = self.start(patch.object(career_scanner, "load_career_pages", return_value=[URL]))
         self.load_words = self.start(patch.object(career_scanner, "load_location_words", return_value=WORDS))
         self.append_rows = self.start(patch.object(career_scanner, "append_career_rows", return_value=True))
@@ -62,10 +67,10 @@ class ScannerTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def scan(self, *reads):
         self.read_site.side_effect = list(reads)
-        return await career_scanner.run_career_scan(KEYWORDS)
+        return await career_scanner.run_career_scan()
 
-    def notified_titles(self):
-        return [c.kwargs["title"] for c in self.notify.call_args_list]
+    def notified_jobs(self):
+        return [c.kwargs["link"].rsplit("/", 1)[-1] for c in self.notify.call_args_list]
 
     def last_status(self):
         return self.write_statuses.call_args.args[0][URL]
@@ -81,7 +86,7 @@ class FirstRunTest(ScannerTestCase):
     async def test_only_a_job_posted_later_is_sent(self):
         await self.scan(feed(job("a")))
         await self.scan(feed(job("a"), job("b")))
-        self.assertEqual(self.notified_titles(), ["b"])
+        self.assertEqual(self.notified_jobs(), ["b"])
         rows = self.append_rows.call_args.args[0]
         self.assertEqual([r.link for r in rows], ["https://acme.com/jobs/b"])
 
@@ -93,7 +98,7 @@ class FirstRunTest(ScannerTestCase):
     async def test_feed_with_no_jobs_is_ready_for_its_first_opening(self):
         await self.scan(feed())
         await self.scan(feed(job("a")))
-        self.assertEqual(self.notified_titles(), ["a"])
+        self.assertEqual(self.notified_jobs(), ["a"])
 
     async def test_page_showing_no_jobs_keeps_next_read_quiet(self):
         await self.scan(page())
@@ -118,21 +123,37 @@ class FilteringTest(ScannerTestCase):
         self.notify.assert_not_called()
         self.assertIn("https://acme.com/jobs/a", state.get_career_site(URL)["seen"])
 
-    async def test_cuts_jobs_without_a_keyword(self):
+    async def test_cuts_a_title_outside_the_lists_even_with_stack_words(self):
         await self.seeded()
-        await self.scan(feed(job("a", description="Excel")))
+        await self.scan(feed(job("a", title="Adobe Solution Architect", description="React")))
         self.notify.assert_not_called()
         self.assertIn("https://acme.com/jobs/a", state.get_career_site(URL)["seen"])
 
+    async def test_generic_title_needs_a_stack_word(self):
+        await self.seeded()
+        await self.scan(
+            feed(
+                job("fits", title="Software Engineer", description="React"),
+                job("other", title="Software Engineer", description="Excel"),
+            )
+        )
+        self.assertEqual(self.notified_jobs(), ["fits"])
+        self.assertIn("https://acme.com/jobs/other", state.get_career_site(URL)["seen"])
+
+    async def test_role_title_needs_no_stack_word(self):
+        await self.seeded()
+        await self.scan(feed(job("a", description="Excel")))
+        self.assertEqual(self.notified_jobs(), ["a"])
+
     async def test_exclude_word_checks_title_only(self):
         await self.seeded()
-        await self.scan(feed(job("PHP Dev"), job("Frontend", description="React, some PHP")))
-        self.assertEqual(self.notified_titles(), ["Frontend"])
+        await self.scan(feed(job("cut", title="PHP Frontend Dev"), job("kept", description="React, some PHP")))
+        self.assertEqual(self.notified_jobs(), ["kept"])
 
     async def test_job_with_no_location_still_gets_through(self):
         await self.seeded()
         await self.scan(feed(job("a", location=None)))
-        self.assertEqual(self.notified_titles(), ["a"])
+        self.assertEqual(self.notified_jobs(), ["a"])
 
     async def test_details_supply_location_and_description(self):
         await self.seeded()
@@ -142,7 +163,7 @@ class FilteringTest(ScannerTestCase):
                 job("far", location=None, description=None, load_details=lambda: ("Poland", "React")),
             )
         )
-        self.assertEqual(self.notified_titles(), ["near"])
+        self.assertEqual(self.notified_jobs(), ["near"])
         self.assertEqual(self.notify.call_args.kwargs["location"], "Argentina")
 
     async def test_does_not_open_a_job_already_cut_by_location(self):
@@ -150,6 +171,51 @@ class FilteringTest(ScannerTestCase):
         details = unittest.mock.Mock()
         await self.scan(feed(job("a", location="Poland", description=None, load_details=details)))
         details.assert_not_called()
+
+    async def test_does_not_open_a_job_whose_title_cannot_match(self):
+        await self.seeded()
+        details = unittest.mock.Mock()
+        await self.scan(feed(job("a", title="Accountant", location=None, description=None, load_details=details)))
+        details.assert_not_called()
+        self.assertIn("https://acme.com/jobs/a", state.get_career_site(URL)["seen"])
+
+    async def test_opens_a_generic_title_to_read_its_description(self):
+        await self.seeded()
+        details = lambda: (None, "React")
+        await self.scan(
+            feed(job("a", title="Software Engineer", location=None, description=None, load_details=details))
+        )
+        self.assertEqual(self.notified_jobs(), ["a"])
+
+    async def test_placeholder_title_is_judged_after_opening_the_page(self):
+        await self.seeded()
+
+        def placeholder(name, real_title):
+            item = job(name, title="Apply Here", location=None, description=None, title_is_final=False)
+
+            def load():
+                item.title = real_title
+                return None, "x"
+
+            item.load_details = load
+            return item
+
+        await self.scan(feed(placeholder("fits", "Frontend Engineer"), placeholder("other", "Accountant")))
+        self.assertEqual(self.notified_jobs(), ["fits"])
+        self.assertEqual(self.notify.call_args.kwargs["title"], "Frontend Engineer")
+        self.assertIn("https://acme.com/jobs/other", state.get_career_site(URL)["seen"])
+
+    async def test_unrelated_titles_do_not_use_up_the_details_limit(self):
+        await self.seeded()
+        details = lambda: ("Argentina", "React")
+        with patch.object(career_scanner, "MAX_DETAILS_PER_SITE", 1):
+            await self.scan(
+                feed(
+                    job("other", title="Accountant", location=None, description=None, load_details=details),
+                    job("a", location=None, description=None, load_details=details),
+                )
+            )
+        self.assertEqual(self.notified_jobs(), ["a"])
 
     async def test_job_whose_details_fail_is_retried_next_scan(self):
         await self.seeded()
@@ -163,7 +229,7 @@ class FilteringTest(ScannerTestCase):
         await self.scan(
             feed(job("a", location=None, description=None, load_details=lambda: ("Argentina", "React")))
         )
-        self.assertEqual(self.notified_titles(), ["a"])
+        self.assertEqual(self.notified_jobs(), ["a"])
 
     async def test_jobs_past_the_details_limit_wait_for_next_scan(self):
         await self.seeded()
@@ -175,7 +241,7 @@ class FilteringTest(ScannerTestCase):
                     job("b", location=None, description=None, load_details=details),
                 )
             )
-            self.assertEqual(self.notified_titles(), ["a"])
+            self.assertEqual(self.notified_jobs(), ["a"])
             self.assertNotIn("https://acme.com/jobs/b", state.get_career_site(URL)["seen"])
 
 
@@ -192,7 +258,7 @@ class SwitchingHowASiteIsReadTest(ScannerTestCase):
         self.notify.assert_not_called()
         self.assertFalse(state.get_career_site(URL)["is_feed"])
         await self.scan(page(job("different-address"), job("new")))
-        self.assertEqual(self.notified_titles(), ["new"])
+        self.assertEqual(self.notified_jobs(), ["new"])
 
     async def test_switching_from_page_to_feed_stays_quiet(self):
         await self.scan(page(job("a")))
@@ -210,15 +276,15 @@ class WritingTest(ScannerTestCase):
         self.assertNotIn("https://acme.com/jobs/a", state.get_career_site(URL)["seen"])
         self.append_rows.return_value = True
         await self.scan(feed(job("a")))
-        self.assertEqual(self.notified_titles(), ["a"])
+        self.assertEqual(self.notified_jobs(), ["a"])
 
     async def test_row_holds_title_location_and_description(self):
         await self.scan(feed())
         await self.scan(feed(job("a", description="Knows React")))
         row = self.append_rows.call_args.args[0][0]
         self.assertEqual(row.company, "acme")
-        self.assertEqual(row.keywords, ["React"])
-        self.assertEqual(row.text, "a\nArgentina\n\nKnows React")
+        self.assertEqual(row.keywords, ["Frontend"])
+        self.assertEqual(row.text, "Frontend a\nArgentina\n\nKnows React")
 
 
 class StatusAndAlertTest(ScannerTestCase):
@@ -270,14 +336,15 @@ class StatusAndAlertTest(ScannerTestCase):
 
 
 class NothingToDoTest(ScannerTestCase):
-    async def assert_skipped_without_losing_jobs(self, keywords=KEYWORDS):
+    async def assert_skipped_without_losing_jobs(self):
         self.read_site.side_effect = [feed(job("a"))]
-        ran = await career_scanner.run_career_scan(keywords)
+        ran = await career_scanner.run_career_scan()
         self.assertFalse(ran)
         self.read_site.assert_not_called()
 
-    async def test_no_keywords_skips_scan(self):
-        await self.assert_skipped_without_losing_jobs({"include": [], "exclude": []})
+    async def test_no_title_words_skips_scan(self):
+        self.load_keywords.return_value = CareerKeywords([], ["Software Engineer"], ["React"], ["PHP"])
+        await self.assert_skipped_without_losing_jobs()
 
     async def test_no_location_words_skips_scan(self):
         self.load_words.return_value = []
@@ -308,7 +375,7 @@ class LoopTest(ScannerTestCase):
             patch.object(career_scanner, "CAREER_SCAN_INTERVAL_HOURS", 24),
             self.assertRaises(StopLoop),
         ):
-            await career_scanner.career_scan_loop(KEYWORDS)
+            await career_scanner.career_scan_loop()
         return sleeps
 
     async def test_finished_scan_waits_a_full_day(self):

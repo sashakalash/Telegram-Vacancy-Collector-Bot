@@ -520,6 +520,7 @@ class JobTitleFromPageTest(unittest.TestCase):
             )
             with patch.object(career_sources, "_fetch", web):
                 job = read_site(url).jobs[0]
+                self.assertFalse(job.title_is_final, text)
                 job.load_details()
             self.assertEqual(job.title, "React Dev & Lead", text)
 
@@ -531,6 +532,7 @@ class JobTitleFromPageTest(unittest.TestCase):
         )
         with patch.object(career_sources, "_fetch", web):
             job = read_site(url).jobs[0]
+            self.assertTrue(job.title_is_final)
             job.load_details()
         self.assertEqual(job.title, "Engineer")
 
